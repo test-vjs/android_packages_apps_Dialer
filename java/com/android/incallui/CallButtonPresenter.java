@@ -16,12 +16,8 @@
 
 package com.android.incallui;
 
-import android.app.AlertDialog;
 import android.content.Context;
-import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.support.v4.os.UserManagerCompat;
 import android.telecom.CallAudioState;
@@ -39,7 +35,6 @@ import com.android.incallui.InCallPresenter.IncomingCallListener;
 import com.android.incallui.audiomode.AudioModeProvider;
 import com.android.incallui.audiomode.AudioModeProvider.AudioModeListener;
 import com.android.incallui.call.CallList;
-import com.android.incallui.call.CallRecorder;
 import com.android.incallui.call.DialerCall;
 import com.android.incallui.call.DialerCall.CameraDirection;
 import com.android.incallui.call.TelecomAdapter;
@@ -61,33 +56,12 @@ public class CallButtonPresenter
   private static final String KEY_AUTOMATICALLY_MUTED = "incall_key_automatically_muted";
   private static final String KEY_PREVIOUS_MUTE_STATE = "incall_key_previous_mute_state";
 
-  private static final String KEY_RECORDING_WARNING_PRESENTED = "recording_warning_presented";
-
   private final Context mContext;
   private InCallButtonUi mInCallButtonUi;
   private DialerCall mCall;
   private boolean mAutomaticallyMuted = false;
   private boolean mPreviousMuteState = false;
   private boolean isInCallButtonUiReady;
-
-  private CallRecorder.RecordingProgressListener mRecordingProgressListener =
-      new CallRecorder.RecordingProgressListener() {
-    @Override
-    public void onStartRecording() {
-      mInCallButtonUi.setCallRecordingState(true);
-      mInCallButtonUi.setCallRecordingDuration(0);
-    }
-
-    @Override
-    public void onStopRecording() {
-      mInCallButtonUi.setCallRecordingState(false);
-    }
-
-    @Override
-    public void onRecordingTimeProgress(final long elapsedTimeMs) {
-      mInCallButtonUi.setCallRecordingDuration(elapsedTimeMs);
-    }
-  };
 
   public CallButtonPresenter(Context context) {
     mContext = context.getApplicationContext();
@@ -107,9 +81,6 @@ public class CallButtonPresenter
     inCallPresenter.addCanAddCallListener(this);
     inCallPresenter.getInCallCameraManager().addCameraSelectionListener(this);
 
-    CallRecorder recorder = CallRecorder.getInstance();
-    recorder.addRecordingProgressListener(mRecordingProgressListener);
-
     // Update the buttons state immediately for the current call
     onStateChange(InCallState.NO_CALLS, inCallPresenter.getInCallState(), CallList.getInstance());
     isInCallButtonUiReady = true;
@@ -125,10 +96,6 @@ public class CallButtonPresenter
     InCallPresenter.getInstance().removeDetailsListener(this);
     InCallPresenter.getInstance().getInCallCameraManager().removeCameraSelectionListener(this);
     InCallPresenter.getInstance().removeCanAddCallListener(this);
-
-    CallRecorder recorder = CallRecorder.getInstance();
-    recorder.removeRecordingProgressListener(mRecordingProgressListener);
-
     isInCallButtonUiReady = false;
   }
 
@@ -302,52 +269,6 @@ public class CallButtonPresenter
   }
 
   @Override
-  public void callRecordClicked(boolean checked) {
-    CallRecorder recorder = CallRecorder.getInstance();
-    if (checked) {
-      final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
-      boolean warningPresented = prefs.getBoolean(KEY_RECORDING_WARNING_PRESENTED, false);
-      if (!warningPresented) {
-        new AlertDialog.Builder(getActivity())
-            .setTitle(R.string.recording_warning_title)
-            .setMessage(R.string.recording_warning_text)
-            .setPositiveButton(R.string.onscreenCallRecordText, (dialog, which) -> {
-              prefs.edit()
-                  .putBoolean(KEY_RECORDING_WARNING_PRESENTED, true)
-                  .apply();
-              startCallRecordingOrAskForPermission();
-            })
-            .setNegativeButton(android.R.string.cancel, null)
-            .show();
-      } else {
-        startCallRecordingOrAskForPermission();
-      }
-    } else {
-      if (recorder.isRecording()) {
-        recorder.finishRecording();
-      }
-    }
-  }
-
-  private void startCallRecordingOrAskForPermission() {
-    if (hasAllPermissions(CallRecorder.REQUIRED_PERMISSIONS)) {
-      CallRecorder recorder = CallRecorder.getInstance();
-      recorder.startRecording(mCall.getNumber(), mCall.getCreationTimeMillis());
-    } else {
-      mInCallButtonUi.requestCallRecordingPermissions(CallRecorder.REQUIRED_PERMISSIONS);
-    }
-  }
-
-  private boolean hasAllPermissions(String[] permissions) {
-    for (String p : permissions) {
-      if (mContext.checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  @Override
   public void changeToVideoClicked() {
     LogUtil.enterBlock("CallButtonPresenter.changeToVideoClicked");
     Logger.get(mContext)
@@ -500,10 +421,6 @@ public class CallButtonPresenter
             && call.getState() != DialerCall.State.DIALING
             && call.getState() != DialerCall.State.CONNECTING;
 
-    final CallRecorder recorder = CallRecorder.getInstance();
-    final boolean showCallRecordOption = recorder.isEnabled()
-        && !isVideo && call.getState() == DialerCall.State.ACTIVE;
-
     mInCallButtonUi.showButton(InCallButtonIds.BUTTON_AUDIO, true);
     mInCallButtonUi.showButton(InCallButtonIds.BUTTON_SWAP, showSwap);
     mInCallButtonUi.showButton(InCallButtonIds.BUTTON_HOLD, showHold);
@@ -521,7 +438,6 @@ public class CallButtonPresenter
     }
     mInCallButtonUi.showButton(InCallButtonIds.BUTTON_DIALPAD, true);
     mInCallButtonUi.showButton(InCallButtonIds.BUTTON_MERGE, showMerge);
-    mInCallButtonUi.showButton(InCallButtonIds.BUTTON_RECORD_CALL, showCallRecordOption);
 
     mInCallButtonUi.updateButtonStates();
   }

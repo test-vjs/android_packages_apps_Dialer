@@ -30,7 +30,6 @@ import android.support.v7.widget.Toolbar;
 import android.support.v7.widget.Toolbar.OnMenuItemClickListener;
 import android.view.MenuItem;
 import com.android.dialer.calldetails.CallDetailsEntries.CallDetailsEntry;
-import com.android.dialer.callrecord.CallRecordingDataStore;
 import com.android.dialer.common.Assert;
 import com.android.dialer.common.concurrent.AsyncTaskExecutors;
 import com.android.dialer.dialercontact.DialerContact;
@@ -55,7 +54,6 @@ public class CallDetailsActivity extends AppCompatActivity
 
   private List<CallDetailsEntry> entries;
   private DialerContact contact;
-  private CallRecordingDataStore callRecordingDataStore;
 
   public static boolean isLaunchIntent(Intent intent) {
     return intent.getComponent() != null
@@ -90,14 +88,7 @@ public class CallDetailsActivity extends AppCompatActivity
           PerformanceReport.recordClick(UiAction.Type.CLOSE_CALL_DETAIL_WITH_CANCEL_BUTTON);
           finish();
         });
-    callRecordingDataStore = new CallRecordingDataStore();
     onHandleIntent(getIntent());
-  }
-
-  @Override
-  protected void onDestroy() {
-    super.onDestroy();
-    callRecordingDataStore.close();
   }
 
   @Override
@@ -129,8 +120,7 @@ public class CallDetailsActivity extends AppCompatActivity
 
     RecyclerView recyclerView = findViewById(R.id.recycler_view);
     recyclerView.setLayoutManager(new LinearLayoutManager(this));
-    recyclerView.setAdapter(new CallDetailsAdapter(this,
-        contact, entries, this, callRecordingDataStore));
+    recyclerView.setAdapter(new CallDetailsAdapter(this, contact, entries, this));
     PerformanceReport.logOnScrollStateChange(recyclerView);
   }
 

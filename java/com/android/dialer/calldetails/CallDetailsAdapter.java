@@ -24,7 +24,6 @@ import android.view.LayoutInflater;
 import android.view.ViewGroup;
 import com.android.dialer.calldetails.CallDetailsEntries.CallDetailsEntry;
 import com.android.dialer.calllogutils.CallTypeHelper;
-import com.android.dialer.callrecord.CallRecordingDataStore;
 import com.android.dialer.common.Assert;
 import com.android.dialer.dialercontact.DialerContact;
 import java.util.List;
@@ -40,18 +39,15 @@ final class CallDetailsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
   private final List<CallDetailsEntry> callDetailsEntries;
   private final CallDetailsFooterViewHolder.ReportCallIdListener listener;
   private final CallTypeHelper callTypeHelper;
-  private final CallRecordingDataStore callRecordingDataStore;
 
   CallDetailsAdapter(
       Context context,
       @NonNull DialerContact contact,
       @NonNull List<CallDetailsEntry> callDetailsEntries,
-      CallDetailsFooterViewHolder.ReportCallIdListener listener,
-      CallRecordingDataStore callRecordingDataStore) {
+      CallDetailsFooterViewHolder.ReportCallIdListener listener) {
     this.contact = Assert.isNotNull(contact);
     this.callDetailsEntries = callDetailsEntries;
     this.listener = listener;
-    this.callRecordingDataStore = callRecordingDataStore;
     callTypeHelper = new CallTypeHelper(context.getResources());
   }
 
@@ -87,7 +83,6 @@ final class CallDetailsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
           contact.getNumber(),
           entry,
           callTypeHelper,
-          callRecordingDataStore,
           !entry.getHistoryResultsList().isEmpty() && position != getItemCount() - 2);
     }
   }
